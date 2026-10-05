@@ -28,8 +28,8 @@ jobs:
       - name: cargo check -p codex-api
         run: cargo check -p codex-api
 
-      - name: Unit tests: chat_wire
+      - name: "Unit tests: chat_wire"
         run: cargo test -p codex-api --lib chat_wire
 
-      - name: Unit tests: chat_provider
+      - name: "Unit tests: chat_provider"
         run: cargo test -p codex-api --lib chat_provider
