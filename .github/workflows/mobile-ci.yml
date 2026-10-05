@@ -43,6 +43,9 @@ jobs:
       - name: "Unit tests: model-provider-info"
         run: cargo test -p codex-model-provider-info
 
+      - name: "Test: config schema matches fixture"
+        run: cargo test -p codex-core config_schema_matches_fixture
+
       - name: Regenerate config schema fixture
         run: cargo run -p codex-config-schema --bin codex-write-config-schema
 

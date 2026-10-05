@@ -544,6 +544,53 @@
       },
       "type": "object"
     },
+    "ChatQuirks": {
+      "additionalProperties": false,
+      "description": "Per-provider quirks for the Chat Completions wire adapter (`wire_api = \"chat\"`). Defaults match the common behavior of OpenAI-compatible relays; providers can override each knob in `config.toml` under `[model_providers.<id>.quirks]`.",
+      "properties": {
+        "echo_reasoning": {
+          "default": false,
+          "description": "Echo reasoning back as `reasoning_content` on assistant messages that carry tool calls (required by some DeepSeek-style thinking modes).",
+          "type": "boolean"
+        },
+        "max_tokens_field": {
+          "default": "max_tokens",
+          "description": "Name of the max-output-tokens field: `max_tokens` or `max_completion_tokens`.",
+          "type": "string"
+        },
+        "null_content_on_tool_calls": {
+          "default": false,
+          "description": "Use `content: null` (instead of `\"\"`) on assistant messages that only carry tool calls.",
+          "type": "boolean"
+        },
+        "omit_stream_options": {
+          "default": false,
+          "description": "Do not send `stream_options.include_usage`.",
+          "type": "boolean"
+        },
+        "omit_tool_choice": {
+          "default": false,
+          "description": "Do not send `tool_choice`.",
+          "type": "boolean"
+        },
+        "parallel_tool_calls": {
+          "default": null,
+          "description": "Send `parallel_tool_calls` with this value; `None` omits the field.",
+          "type": "boolean"
+        },
+        "reasoning_field": {
+          "default": null,
+          "description": "Name of the reasoning delta field; `None` probes `reasoning_content` / `reasoning` / `thinking`.",
+          "type": "string"
+        },
+        "repair_tool_json": {
+          "default": true,
+          "description": "Try to repair malformed tool-call arguments before surfacing them.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "CircuitBreakAction": {
       "oneOf": [
         {
@@ -2811,6 +2858,14 @@
           },
           "description": "Optional query parameters to append to the base URL.",
           "type": "object"
+        },
+        "quirks": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ChatQuirks"
+            }
+          ],
+          "description": "Per-provider quirks for the Chat Completions wire adapter (`wire_api = \"chat\"`)."
         },
         "request_max_retries": {
           "description": "Maximum number of times to retry a failed HTTP request to this provider.",
@@ -6705,6 +6760,13 @@
           "description": "The Responses API exposed by OpenAI at `/v1/responses`.",
           "enum": [
             "responses"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "The Chat Completions API at `/v1/chat/completions`, used by OpenAI-compatible relays.",
+          "enum": [
+            "chat"
           ],
           "type": "string"
         }
