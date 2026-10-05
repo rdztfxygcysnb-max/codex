@@ -1,5 +1,7 @@
 pub(crate) mod api_bridge;
 pub(crate) mod auth;
+pub mod chat_provider;
+pub mod chat_wire;
 pub(crate) mod common;
 pub(crate) mod endpoint;
 pub(crate) mod error;
