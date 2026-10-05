@@ -1649,23 +1649,6 @@ impl ModelClientSession {
         }
     }
 
-    /// Streams a turn via the OpenAI Responses API.
-    ///
-    /// Handles reasoning summaries, verbosity, and the `text` controls used for output schemas.
-    #[allow(clippy::too_many_arguments)]
-    #[instrument(
-        name = "model_client.stream_responses_api",
-        level = "info",
-        skip_all,
-        fields(
-            model = %model_info.slug,
-            wire_api = %self.client.state.provider.info().wire_api,
-            transport = "responses_http",
-            http.method = "POST",
-            api.path = tracing::field::Empty,
-            turn.has_metadata_header = responses_metadata.has_turn_metadata()
-        )
-    )]
     /// Streams a turn via an OpenAI-compatible Chat Completions relay.
     ///
     /// This path is used when the provider is configured with `WireApi::Chat`;
@@ -1674,6 +1657,8 @@ impl ModelClientSession {
         &self,
         prompt: &Prompt,
         model_info: &ModelInfo,
+        session_telemetry: &SessionTelemetry,
+        inference_trace: &InferenceTraceContext,
     ) -> Result<ResponseStream> {
         if prompt.output_schema.is_some() {
             return Err(CodexErr::UnsupportedOperation(
@@ -1701,12 +1686,37 @@ impl ModelClientSession {
             .quirks
             .clone()
             .unwrap_or_default();
-        client
+        let api_stream = client
             .stream_chat(&model_info.slug, &history, &tools, quirks, None)
             .await
-            .map_err(|error| self.client.state.provider.map_api_error(error))
+            .map_err(|error| self.client.state.provider.map_api_error(error))?;
+        let (stream, _) = map_response_stream(
+            api_stream,
+            session_telemetry.clone(),
+            inference_trace.start_attempt(),
+            Arc::clone(&self.client.state.provider),
+            Vec::new(),
+        );
+        Ok(stream)
     }
 
+    /// Streams a turn via the OpenAI Responses API.
+    ///
+    /// Handles reasoning summaries, verbosity, and the `text` controls used for output schemas.
+    #[allow(clippy::too_many_arguments)]
+    #[instrument(
+        name = "model_client.stream_responses_api",
+        level = "info",
+        skip_all,
+        fields(
+            model = %model_info.slug,
+            wire_api = %self.client.state.provider.info().wire_api,
+            transport = "responses_http",
+            http.method = "POST",
+            api.path = tracing::field::Empty,
+            turn.has_metadata_header = responses_metadata.has_turn_metadata()
+        )
+    )]
     async fn stream_responses_api(
         &self,
         prompt: &Prompt,
@@ -2332,7 +2342,10 @@ impl ModelClientSession {
                 )
                 .await
             }
-            WireApi::Chat => self.stream_chat_completions(prompt, model_info).await,
+            WireApi::Chat => {
+                self.stream_chat_completions(prompt, model_info, session_telemetry, inference_trace)
+                    .await
+            }
         }
     }
 
