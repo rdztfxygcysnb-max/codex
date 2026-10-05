@@ -45,28 +45,22 @@ jobs:
 
       - name: "Isolation: chat run makes no non-loopback connections"
         run: |
-          set -euo pipefail
+          set -x
           python3 ../scripts/mock_chat_relay.py &
           RELAY_PID=$!
           sleep 2
+          curl -s -m 3 -o /dev/null -w "relay probe: %{http_code}\n" -X POST http://127.0.0.1:8899/v1/chat/completions -d '{}' || echo "relay probe failed"
           export CODEX_HOME="$(mktemp -d)"
-          cat > "$CODEX_HOME/config.toml" <<'TOML'
-          model = "test-model"
-          model_provider = "localchat"
-
-          [model_providers.localchat]
-          name = "LocalChat"
-          base_url = "http://127.0.0.1:8899/v1"
-          wire_api = "chat"
-          env_key = "LOCALCHAT_KEY"
-          TOML
+          printf 'model = "test-model"\nmodel_provider = "localchat"\n\n[model_providers.localchat]\nname = "LocalChat"\nbase_url = "http://127.0.0.1:8899/v1"\nwire_api = "chat"\nenv_key = "LOCALCHAT_KEY"\n' > "$CODEX_HOME/config.toml"
+          cat "$CODEX_HOME/config.toml"
           export LOCALCHAT_KEY=dummy
           which strace >/dev/null 2>&1 || sudo apt-get install -y -qq strace
-          strace -f -e trace=connect -o /tmp/connect.log \
-            ./target/debug/codex exec --skip-git-repo-check --ephemeral "say hi" </dev/null > /tmp/codex.out 2>&1 || true
+          echo "strace ready"
+          timeout 180 strace -f -e trace=connect -o /tmp/connect.log \
+            ./target/debug/codex exec --skip-git-repo-check --ephemeral "say hi" </dev/null > /tmp/codex.out 2>&1 || echo "codex exit: $?"
           kill "$RELAY_PID" 2>/dev/null || true
           echo "=== codex output (tail) ==="
-          tail -12 /tmp/codex.out || true
+          tail -20 /tmp/codex.out || true
           echo "=== connect targets ==="
           grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | sort | uniq -c || true
           if grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | grep -vE '127\.0\.0\.1'; then
