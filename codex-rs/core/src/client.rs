@@ -1666,6 +1666,47 @@ impl ModelClientSession {
             turn.has_metadata_header = responses_metadata.has_turn_metadata()
         )
     )]
+    /// Streams a turn via an OpenAI-compatible Chat Completions relay.
+    ///
+    /// This path is used when the provider is configured with `WireApi::Chat`;
+    /// it does not support `output_schema` today.
+    async fn stream_chat_completions(
+        &self,
+        prompt: &Prompt,
+        model_info: &ModelInfo,
+    ) -> Result<ResponseStream> {
+        if prompt.output_schema.is_some() {
+            return Err(CodexErr::UnsupportedOperation(
+                "output_schema is not supported for Chat Completions API".to_string(),
+            ));
+        }
+        let client_setup = self
+            .client
+            .current_client_setup(ClientRouting::Workspace)
+            .await?;
+        let transport = self.client.build_api_transport(
+            &client_setup.api_provider,
+            "/chat/completions",
+            client_setup.redirect_policy,
+        )?;
+        let client =
+            codex_api::ChatClient::new(transport, client_setup.api_provider, client_setup.api_auth);
+        let history = crate::chat_bridge::chat_history_from_prompt(prompt);
+        let tools = crate::chat_bridge::chat_tools_from_prompt(&prompt.tools);
+        let quirks = self
+            .client
+            .state
+            .provider
+            .info()
+            .quirks
+            .clone()
+            .unwrap_or_default();
+        client
+            .stream_chat(&model_info.slug, &history, &tools, quirks, None)
+            .await
+            .map_err(|error| self.client.state.provider.map_api_error(error))
+    }
+
     async fn stream_responses_api(
         &self,
         prompt: &Prompt,
@@ -2291,9 +2332,7 @@ impl ModelClientSession {
                 )
                 .await
             }
-            WireApi::Chat => Err(CodexErr::UnsupportedOperation(
-                "wire_api = \"chat\" is not wired into the model client yet".to_string(),
-            )),
+            WireApi::Chat => self.stream_chat_completions(prompt, model_info).await,
         }
     }
 
