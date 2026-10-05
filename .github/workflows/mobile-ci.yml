@@ -34,14 +34,46 @@ jobs:
       - name: cargo check -p codex-core
         run: cargo check -p codex-core
 
-      - name: "Unit tests: chat_wire"
-        run: cargo test -p codex-api --lib chat_wire
-
-      - name: "Unit tests: chat_provider"
-        run: cargo test -p codex-api --lib chat_provider
+      - name: "Unit tests: chat modules"
+        run: cargo test -p codex-api --lib chat
 
       - name: "Unit tests: model-provider-info"
         run: cargo test -p codex-model-provider-info
+
+      - name: Build codex CLI (for the isolation test)
+        run: cargo build -p codex-cli --bin codex
+
+      - name: "Isolation: chat run makes no non-loopback connections"
+        run: |
+          set -euo pipefail
+          python3 ../scripts/mock_chat_relay.py &
+          RELAY_PID=$!
+          sleep 2
+          export CODEX_HOME="$(mktemp -d)"
+          cat > "$CODEX_HOME/config.toml" <<'TOML'
+          model = "test-model"
+          model_provider = "localchat"
+
+          [model_providers.localchat]
+          name = "LocalChat"
+          base_url = "http://127.0.0.1:8899/v1"
+          wire_api = "chat"
+          env_key = "LOCALCHAT_KEY"
+          TOML
+          export LOCALCHAT_KEY=dummy
+          which strace >/dev/null 2>&1 || sudo apt-get install -y -qq strace
+          strace -f -e trace=connect -o /tmp/connect.log \
+            ./target/debug/codex exec --skip-git-repo-check --ephemeral "say hi" </dev/null > /tmp/codex.out 2>&1 || true
+          kill "$RELAY_PID" 2>/dev/null || true
+          echo "=== codex output (tail) ==="
+          tail -12 /tmp/codex.out || true
+          echo "=== connect targets ==="
+          grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | sort | uniq -c || true
+          if grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | grep -vE '127\.0\.0\.1'; then
+            echo "FAIL: non-loopback connection detected"
+            exit 1
+          fi
+          echo "OK: only loopback connections during the chat run"
 
       - name: "Test: config schema matches fixture"
         run: cargo test -p codex-core config_schema_matches_fixture
