@@ -1,0 +1,35 @@
+# mobile-ci.yml: build check for the mobile/chat-wire work.
+# Added by the mobile fork work; upstream CI files are left untouched.
+name: mobile-ci
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  codex-api:
+    name: codex-api check + chat module tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs
+
+      - name: cargo check -p codex-api
+        run: cargo check -p codex-api
+
+      - name: Unit tests: chat_wire
+        run: cargo test -p codex-api --lib chat_wire
+
+      - name: Unit tests: chat_provider
+        run: cargo test -p codex-api --lib chat_provider
