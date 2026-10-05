@@ -580,6 +580,7 @@ other non-default provider fields are not supported"
             gateway_oauth: None,
             aws: None,
             wire_api: WireApi::Responses,
+            quirks: None,
             query_params: None,
             http_headers: Some(
                 [("version".to_string(), env!("CARGO_PKG_VERSION").into())]
@@ -632,6 +633,7 @@ other non-default provider fields are not supported"
                 auth_refresh: None,
             })),
             wire_api: WireApi::Responses,
+            quirks: None,
             query_params: None,
             http_headers: Some(HashMap::from([(
                 AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_HEADER.to_string(),
@@ -809,6 +811,7 @@ pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> M
         gateway_oauth: None,
         aws: None,
         wire_api,
+        quirks: None,
         query_params: None,
         http_headers: None,
         env_http_headers: None,

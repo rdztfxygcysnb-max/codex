@@ -69,6 +69,7 @@ mod tests {
             gateway_oauth: None,
             aws: None,
             wire_api: WireApi::Responses,
+            quirks: None,
             query_params: None,
             http_headers: None,
             env_http_headers: None,
