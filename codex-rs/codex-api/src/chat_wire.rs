@@ -1,6 +1,6 @@
 //! chat_wire.rs: Chat Completions adapter for a forked Codex.
 //!
-//! Self-contained: depends only on `serde` (derive) and `serde_json`.
+//! Depends on `serde_json` and `codex-model-provider-info` (the ChatQuirks type).
 //! UNTESTED: written without a Rust toolchain. Run `cargo test` first.
 //!
 //! Wiring into codex-rs (names may differ in your version):
@@ -16,49 +16,16 @@
 //!   Unrecoverable tool calls: do NOT execute them. Return a tool error to the
 //!   model ("arguments were not valid JSON, resend") so it retries.
 
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 // ───────────────────────── Quirks (per-provider config) ─────────────────────────
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct Quirks {
-    /// Try to repair malformed tool-call arguments.
-    pub repair_tool_json: bool,
-    /// Name of the reasoning delta field. None = probe reasoning_content / reasoning / thinking.
-    pub reasoning_field: Option<String>,
-    /// Send reasoning back as `reasoning_content` on assistant messages that carry tool calls
-    /// (needed by some DeepSeek-style thinking modes).
-    pub echo_reasoning: bool,
-    /// Do not send `stream_options.include_usage`.
-    pub omit_stream_options: bool,
-    /// Do not send `tool_choice`.
-    pub omit_tool_choice: bool,
-    /// Send `parallel_tool_calls` with this value. None = do not send.
-    pub parallel_tool_calls: Option<bool>,
-    /// "max_tokens" or "max_completion_tokens".
-    pub max_tokens_field: String,
-    /// Use `content: null` (instead of "") on assistant messages that only carry tool calls.
-    pub null_content_on_tool_calls: bool,
-}
-
-impl Default for Quirks {
-    fn default() -> Self {
-        Quirks {
-            repair_tool_json: true,
-            reasoning_field: None,
-            echo_reasoning: false,
-            omit_stream_options: false,
-            omit_tool_choice: false,
-            parallel_tool_calls: None,
-            max_tokens_field: "max_tokens".to_string(),
-            null_content_on_tool_calls: false,
-        }
-    }
-}
+// The quirks type lives in codex-model-provider-info so `config.toml` can
+// deserialize it per provider (`[model_providers.<id>.quirks]`); re-exported
+// here under the name the wire code uses.
+pub use codex_model_provider_info::ChatQuirks as Quirks;
 
 // ───────────────────────── Errors ─────────────────────────
 
