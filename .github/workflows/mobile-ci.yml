@@ -57,7 +57,7 @@ jobs:
           which strace >/dev/null 2>&1 || sudo apt-get install -y -qq strace
           which tcpdump >/dev/null 2>&1 || sudo apt-get install -y -qq tcpdump
           echo "tools ready"
-          (sudo timeout 260 tcpdump -i any -n -s 600 -c 400 'tcp port 443' > /tmp/tls.log 2>&1 &)
+          (sudo timeout 260 tcpdump -i any -n -A -s 600 -c 400 'tcp port 443' > /tmp/tls.log 2>&1 &)
           sleep 2
           timeout 180 strace -f -e trace=connect -o /tmp/connect.log \
             ./target/debug/codex exec --skip-git-repo-check --ephemeral "say hi" </dev/null > /tmp/codex.out 2>&1 || echo "codex exit: $?"
