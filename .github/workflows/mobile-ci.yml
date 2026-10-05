@@ -57,7 +57,7 @@ jobs:
           which strace >/dev/null 2>&1 || sudo apt-get install -y -qq strace
           which tcpdump >/dev/null 2>&1 || sudo apt-get install -y -qq tcpdump
           echo "tools ready"
-          (sudo timeout 260 tcpdump -i any -n 'udp port 53' > /tmp/dns.log 2>&1 &)
+          (sudo timeout 260 tcpdump -i any -n -s 600 -c 400 'tcp port 443' > /tmp/tls.log 2>&1 &)
           sleep 2
           timeout 180 strace -f -e trace=connect -o /tmp/connect.log \
             ./target/debug/codex exec --skip-git-repo-check --ephemeral "say hi" </dev/null > /tmp/codex.out 2>&1 || echo "codex exit: $?"
@@ -65,8 +65,10 @@ jobs:
           sleep 3
           echo "=== codex output (tail) ==="
           tail -25 /tmp/codex.out || true
-          echo "=== DNS queries during the run ==="
-          grep -oE '(A|AAAA)\? [A-Za-z0-9.-]+' /tmp/dns.log 2>/dev/null | sort | uniq -c | sort -rn | head -25 || true
+          echo "=== TLS SNI hostnames during the run ==="
+          grep -aoE '[a-z0-9-]{2,}(\.[a-z0-9-]{2,}){2,}' /tmp/tls.log 2>/dev/null | sort | uniq -c | sort -rn | head -25 || true
+          echo "=== tls.log head ==="
+          head -c 700 /tmp/tls.log || true
           echo "=== connect targets ==="
           grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | sort | uniq -c || true
           if grep -oE 'inet_addr\("[0-9.]+"\)' /tmp/connect.log | grep -vE '127\.0\.0\.1'; then
