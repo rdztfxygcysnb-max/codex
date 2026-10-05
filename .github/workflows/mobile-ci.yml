@@ -28,8 +28,27 @@ jobs:
       - name: cargo check -p codex-api
         run: cargo check -p codex-api
 
+      - name: cargo check -p codex-model-provider-info -p codex-config
+        run: cargo check -p codex-model-provider-info -p codex-config
+
+      - name: cargo check -p codex-core
+        run: cargo check -p codex-core
+
       - name: "Unit tests: chat_wire"
         run: cargo test -p codex-api --lib chat_wire
 
       - name: "Unit tests: chat_provider"
         run: cargo test -p codex-api --lib chat_provider
+
+      - name: "Unit tests: model-provider-info"
+        run: cargo test -p codex-model-provider-info
+
+      - name: Regenerate config schema fixture
+        run: cargo run -p codex-config-schema --bin codex-write-config-schema
+
+      - name: Upload regenerated schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-schema
+          path: codex-rs/core/config.schema.json
+          if-no-files-found: error

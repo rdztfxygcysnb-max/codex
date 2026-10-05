@@ -2291,6 +2291,9 @@ impl ModelClientSession {
                 )
                 .await
             }
+            WireApi::Chat => Err(CodexErr::UnsupportedOperation(
+                "wire_api = \"chat\" is not wired into the model client yet".to_string(),
+            )),
         }
     }
 

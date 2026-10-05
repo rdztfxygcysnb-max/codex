@@ -187,7 +187,7 @@ supports_standalone_web_search = true
 }
 
 #[test]
-fn test_deserialize_chat_wire_api_shows_helpful_error() {
+fn test_deserialize_chat_wire_api() {
     let provider_toml = r#"
 name = "OpenAI using Chat Completions"
 base_url = "https://api.openai.com/v1"
@@ -195,8 +195,29 @@ env_key = "OPENAI_API_KEY"
 wire_api = "chat"
         "#;
 
-    let err = toml::from_str::<ModelProviderInfo>(provider_toml).unwrap_err();
-    assert!(err.to_string().contains(CHAT_WIRE_API_REMOVED_ERROR));
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    assert_eq!(provider.wire_api, WireApi::Chat);
+    assert_eq!(provider.quirks, None);
+}
+
+#[test]
+fn test_deserialize_chat_quirks() {
+    let provider_toml = r#"
+name = "Relay"
+base_url = "https://relay.example.com/v1"
+wire_api = "chat"
+
+[quirks]
+echo_reasoning = true
+max_tokens_field = "max_completion_tokens"
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    let quirks = provider.quirks.expect("quirks parsed");
+    assert!(quirks.echo_reasoning);
+    assert_eq!(quirks.max_tokens_field, "max_completion_tokens");
+    assert!(quirks.repair_tool_json);
+    assert!(!quirks.omit_stream_options);
 }
 
 #[test]
