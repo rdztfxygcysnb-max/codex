@@ -11,9 +11,15 @@ futures = { workspace = true }
 http = { workspace = true }
 http-body = "1.0.1"
 httpdate = { workspace = true }
-native-tls = "0.2"
 opentelemetry = { workspace = true }
-reqwest = { workspace = true, features = ["json", "rustls-tls", "rustls-tls-native-roots", "stream"] }
+reqwest = { workspace = true, default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "rustls-tls-native-roots",
+    "stream",
+    "charset",
+    "http2",
+] }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 rustls-pki-types = { workspace = true }
@@ -26,6 +32,11 @@ tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 zstd = { workspace = true }
+
+# native-tls is only used to classify TLS errors; Android has no system
+# OpenSSL, and reqwest already uses rustls there.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+native-tls = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 system-configuration = { workspace = true }
