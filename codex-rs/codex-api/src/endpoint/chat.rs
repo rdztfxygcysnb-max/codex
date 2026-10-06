@@ -23,6 +23,7 @@ use crate::provider::Provider;
 use codex_client::EncodedJsonBody;
 use codex_client::HttpTransport;
 use codex_client::StreamResponse;
+use codex_protocol::models::ContentItem;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::TokenUsage;
 use futures::StreamExt;
@@ -95,6 +96,7 @@ fn spawn_chat_stream(response: StreamResponse, quirks: Quirks) -> ResponseStream
         let mut parser = SseParser::new();
         let mut accumulator = StreamAccumulator::new(quirks);
         let mut pending_usage: Option<TokenUsage> = None;
+        let mut text_state = TextItemState::default();
         let mut bytes = response.bytes;
         loop {
             let chunk = match bytes.next().await {
@@ -110,13 +112,29 @@ fn spawn_chat_stream(response: StreamResponse, quirks: Quirks) -> ResponseStream
                 None => break,
             };
             let datas = parser.push(&chunk);
-            if !forward_datas(&mut accumulator, &datas, &mut pending_usage, &tx_event).await {
+            if !forward_datas(
+                &mut accumulator,
+                &datas,
+                &mut text_state,
+                &mut pending_usage,
+                &tx_event,
+            )
+            .await
+            {
                 return;
             }
         }
         // The stream ended: flush the parser, then release accumulated events.
         let datas = parser.flush();
-        if !forward_datas(&mut accumulator, &datas, &mut pending_usage, &tx_event).await {
+        if !forward_datas(
+            &mut accumulator,
+            &datas,
+            &mut text_state,
+            &mut pending_usage,
+            &tx_event,
+        )
+        .await
+        {
             return;
         }
         if !accumulator.ended_cleanly() {
@@ -128,10 +146,8 @@ fn spawn_chat_stream(response: StreamResponse, quirks: Quirks) -> ResponseStream
             return;
         }
         for event in accumulator.finish() {
-            if let Some(mapped) = to_response_event(event, &mut pending_usage) {
-                if tx_event.send(Ok(mapped)).await.is_err() {
-                    return;
-                }
+            if !emit_event(event, &mut text_state, &mut pending_usage, &tx_event).await {
+                return;
             }
         }
     });
@@ -142,11 +158,31 @@ fn spawn_chat_stream(response: StreamResponse, quirks: Quirks) -> ResponseStream
     }
 }
 
+/// Tracks the open assistant text item so text deltas are always wrapped in
+/// `OutputItemAdded` / `OutputItemDone` pairs (the client asserts on deltas
+/// that arrive without an active item).
+#[derive(Default)]
+struct TextItemState {
+    active: bool,
+    buffer: String,
+}
+
+fn assistant_message_item(content: Vec<ContentItem>) -> ResponseItem {
+    ResponseItem::Message {
+        id: None,
+        role: "assistant".to_string(),
+        content,
+        phase: None,
+        internal_chat_message_metadata_passthrough: None,
+    }
+}
+
 /// Feeds parsed SSE payloads into the accumulator and forwards mapped events.
 /// Returns `false` when the receiver is gone or a wire error was surfaced.
 async fn forward_datas(
     accumulator: &mut StreamAccumulator,
     datas: &[String],
+    text_state: &mut TextItemState,
     pending_usage: &mut Option<TokenUsage>,
     tx: &mpsc::Sender<Result<ResponseEvent, ApiError>>,
 ) -> bool {
@@ -159,14 +195,62 @@ async fn forward_datas(
             }
         };
         for event in events {
-            if let Some(mapped) = to_response_event(event, pending_usage) {
-                if tx.send(Ok(mapped)).await.is_err() {
-                    return false;
-                }
+            if !emit_event(event, text_state, pending_usage, tx).await {
+                return false;
             }
         }
     }
     true
+}
+
+/// Emits one chat event, keeping the assistant-text item state machine consistent.
+async fn emit_event(
+    event: ChatEvent,
+    text_state: &mut TextItemState,
+    pending_usage: &mut Option<TokenUsage>,
+    tx: &mpsc::Sender<Result<ResponseEvent, ApiError>>,
+) -> bool {
+    match event {
+        ChatEvent::TextDelta(text) => {
+            if !text_state.active {
+                if tx
+                    .send(Ok(ResponseEvent::OutputItemAdded(assistant_message_item(
+                        Vec::new(),
+                    ))))
+                    .await
+                    .is_err()
+                {
+                    return false;
+                }
+                text_state.active = true;
+            }
+            text_state.buffer.push_str(&text);
+            tx.send(Ok(ResponseEvent::OutputTextDelta(text)))
+                .await
+                .is_ok()
+        }
+        other => {
+            if text_state.active {
+                let content = vec![ContentItem::OutputText {
+                    text: std::mem::take(&mut text_state.buffer),
+                }];
+                if tx
+                    .send(Ok(ResponseEvent::OutputItemDone(assistant_message_item(
+                        content,
+                    ))))
+                    .await
+                    .is_err()
+                {
+                    return false;
+                }
+                text_state.active = false;
+            }
+            match to_response_event(other, pending_usage) {
+                Some(mapped) => tx.send(Ok(mapped)).await.is_ok(),
+                None => true,
+            }
+        }
+    }
 }
 
 /// Maps one chat event to a codex `ResponseEvent`.
@@ -332,6 +416,62 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[tokio::test]
+    async fn text_deltas_are_wrapped_in_item_events() {
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut text_state = TextItemState::default();
+        let mut usage = None;
+        assert!(
+            emit_event(
+                ChatEvent::TextDelta("he".to_string()),
+                &mut text_state,
+                &mut usage,
+                &tx
+            )
+            .await
+        );
+        assert!(
+            emit_event(
+                ChatEvent::TextDelta("llo".to_string()),
+                &mut text_state,
+                &mut usage,
+                &tx
+            )
+            .await
+        );
+        assert!(
+            emit_event(
+                ChatEvent::Completed {
+                    finish: FinishKind::Stop
+                },
+                &mut text_state,
+                &mut usage,
+                &tx
+            )
+            .await
+        );
+        drop(tx);
+        let mut events = Vec::new();
+        while let Some(ev) = rx.recv().await {
+            events.push(ev.expect("event"));
+        }
+        assert!(matches!(
+            events[0],
+            ResponseEvent::OutputItemAdded(ResponseItem::Message { .. })
+        ));
+        assert!(matches!(&events[1], ResponseEvent::OutputTextDelta(t) if t == "he"));
+        assert!(matches!(&events[2], ResponseEvent::OutputTextDelta(t) if t == "llo"));
+        match &events[3] {
+            ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. }) => {
+                assert!(
+                    matches!(&content[0], ContentItem::OutputText { text } if text == "hello")
+                );
+            }
+            other => panic!("unexpected event: {other:?}"),
+        }
+        assert!(matches!(events[4], ResponseEvent::Completed { .. }));
     }
 
     #[test]
