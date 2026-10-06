@@ -128,6 +128,7 @@ fn plugins_config_input_with_requirements(
         String::new(),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     )
 }
 
@@ -169,12 +170,39 @@ fn curated_repo_sync_stays_deferred_for_remote_chatgpt_catalog() {
         "https://chatgpt.com".to_string(),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     );
     let manager = Arc::new(test_plugins_manager_with_options(
         tmp.path().to_path_buf(),
         Some(Product::Codex),
         Some(AuthMode::Chatgpt),
     ));
+
+    manager.maybe_start_curated_repo_sync_for_config(
+        &config, /*on_effective_plugins_changed*/ None,
+    );
+
+    assert!(!CURATED_REPO_SYNC_STARTED.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+#[test]
+fn curated_repo_sync_stays_deferred_for_self_contained_provider() {
+    // A provider that does not require OpenAI auth (a third-party relay) is
+    // self-contained: the curated OpenAI plugin marketplace must never be
+    // synced on its behalf, so no phone-home happens on startup.
+    CURATED_REPO_SYNC_STARTED.store(false, std::sync::atomic::Ordering::SeqCst);
+    let tmp = TempDir::new().unwrap();
+    let config = PluginsConfigInput::new(
+        unrestricted_config_layer_stack(),
+        "localchat".to_string(),
+        /*plugins_enabled*/ true,
+        /*remote_plugin_enabled*/ false,
+        "https://chatgpt.com".to_string(),
+        test_http_client_factory(),
+        /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ false,
+    );
+    let manager = Arc::new(test_plugins_manager(tmp.path().to_path_buf()));
 
     manager.maybe_start_curated_repo_sync_for_config(
         &config, /*on_effective_plugins_changed*/ None,
@@ -2985,6 +3013,7 @@ async fn plugin_cache_reuses_effective_configurations() {
             "https://chatgpt.com".to_string(),
             test_http_client_factory(),
             /*product_sku*/ None,
+            /*provider_requires_openai_auth*/ true,
         )
     };
     let manager = test_plugins_manager(codex_home.path().to_path_buf());
@@ -3250,6 +3279,7 @@ async fn plugins_for_config_discards_in_flight_load_after_account_change() {
         String::new(),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     );
     let auth_manager = test_auth_manager(Some(AuthMode::ChatgptAuthTokens));
     let manager = Arc::new(test_plugins_manager_with_auth_manager(
@@ -5852,6 +5882,33 @@ plugins = true
         .unwrap();
 
     assert_eq!(featured_plugin_ids, vec!["codex-plugin".to_string()]);
+}
+
+#[tokio::test]
+async fn featured_plugin_ids_for_config_skips_network_for_self_contained_provider() {
+    // A provider that does not require OpenAI auth (a third-party relay) must
+    // never trigger a request to the ChatGPT remote plugin catalog. The base
+    // URL below is unroutable on purpose: without the gate this test would
+    // fail trying to reach it.
+    let tmp = tempfile::tempdir().unwrap();
+    let config = PluginsConfigInput::new(
+        unrestricted_config_layer_stack(),
+        "localchat".to_string(),
+        /*plugins_enabled*/ true,
+        /*remote_plugin_enabled*/ false,
+        "https://127.0.0.1:9/backend-api/".to_string(),
+        test_http_client_factory(),
+        /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ false,
+    );
+    let manager = test_plugins_manager(tmp.path().to_path_buf());
+
+    let featured_plugin_ids = manager
+        .featured_plugin_ids_for_config(&config, /*auth*/ None)
+        .await
+        .unwrap();
+
+    assert!(featured_plugin_ids.is_empty());
 }
 
 #[tokio::test]

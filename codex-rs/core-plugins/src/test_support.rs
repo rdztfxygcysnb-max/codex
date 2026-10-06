@@ -499,6 +499,7 @@ pub(crate) async fn load_plugins_config(codex_home: &Path, cwd: &Path) -> Plugin
         "https://chatgpt.com/backend-api/".to_string(),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     )
 }
 

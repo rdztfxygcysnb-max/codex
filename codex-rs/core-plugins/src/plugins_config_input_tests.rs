@@ -24,6 +24,7 @@ fn repeated_service_configs_and_early_clones_share_one_lazy_pool() {
         "https://chatgpt.com/backend-api".to_string(),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     );
     let clone = input.clone();
     assert!(input.remote_http_clients.get().is_none());
@@ -44,6 +45,7 @@ fn repeated_service_configs_and_early_clones_share_one_lazy_pool() {
         input.chatgpt_base_url.clone(),
         input.http_client_factory.clone(),
         input.product_sku,
+        input.provider_requires_openai_auth,
     );
     assert_eq!(
         (
@@ -91,6 +93,7 @@ async fn reused_pool_uses_current_endpoint_product_and_authentication() {
         format!("{}/backend-api", first_server.uri()),
         test_http_client_factory(),
         /*product_sku*/ None,
+        /*provider_requires_openai_auth*/ true,
     );
     let first = input.remote_plugin_service_config();
     let first_auth = CodexAuth::from_external_chatgpt_tokens(

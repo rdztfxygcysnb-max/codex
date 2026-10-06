@@ -161,6 +161,10 @@ pub struct PluginsConfigInput {
     pub remote_plugin_enabled: bool,
     pub chatgpt_base_url: String,
     pub product_sku: Option<String>,
+    /// Whether the active model provider requires OpenAI auth. A provider that
+    /// does not (a third-party relay) is self-contained: the curated OpenAI
+    /// plugin marketplace must never be synced on its behalf (no phone-home).
+    pub provider_requires_openai_auth: bool,
     http_client_factory: HttpClientFactory,
     remote_http_clients: Arc<OnceLock<Arc<dyn HttpClientSelector>>>,
 }
@@ -174,6 +178,7 @@ impl PluginsConfigInput {
         chatgpt_base_url: String,
         http_client_factory: HttpClientFactory,
         product_sku: Option<String>,
+        provider_requires_openai_auth: bool,
     ) -> Self {
         Self {
             config_layer_stack,
@@ -183,6 +188,7 @@ impl PluginsConfigInput {
             chatgpt_base_url,
             http_client_factory,
             product_sku,
+            provider_requires_openai_auth,
             remote_http_clients: Arc::new(OnceLock::new()),
         }
     }
@@ -751,6 +757,7 @@ impl PluginsManager {
         on_effective_plugins_changed: Option<EffectivePluginsChangedCallback>,
     ) {
         if config.plugins_enabled
+            && config.provider_requires_openai_auth
             && !self.remote_global_catalog_active(config)
             && MarketplacePolicy::from_requirements(config.config_layer_stack.requirements())
                 .validate_git_source(OPENAI_PLUGINS_GIT_URL, /*ref_name*/ None)
@@ -1874,6 +1881,12 @@ impl PluginsManager {
         auth: Option<&CodexAuth>,
     ) -> Result<Vec<String>, RemotePluginFetchError> {
         if !config.plugins_enabled {
+            return Ok(Vec::new());
+        }
+        // A provider that does not require OpenAI auth (a third-party relay) is
+        // self-contained: never phone home to the ChatGPT remote plugin catalog
+        // on its behalf.
+        if !config.provider_requires_openai_auth {
             return Ok(Vec::new());
         }
 

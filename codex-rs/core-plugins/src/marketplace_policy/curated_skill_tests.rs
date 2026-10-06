@@ -88,6 +88,7 @@ async fn curated_git_requirements_control_plugin_skills() -> Result<()> {
             "https://chatgpt.com/backend-api/".to_string(),
             HttpClientFactory::new(OutboundProxyPolicy::ReqwestDefault),
             /*product_sku*/ None,
+            /*provider_requires_openai_auth*/ true,
         );
         let auth = if name == "openai-curated" {
             CodexAuth::create_dummy_chatgpt_auth_for_testing()
