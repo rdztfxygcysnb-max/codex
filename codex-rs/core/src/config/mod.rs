@@ -3845,6 +3845,12 @@ impl Config {
             })?
             .clone();
 
+        // A provider that does not require OpenAI auth (a third-party relay) is
+        // self-contained: never phone home to OpenAI services on its behalf.
+        // This is not a config knob on purpose, so it cannot drift out of sync
+        // with the provider definition.
+        let self_contained_provider = !model_provider.requires_openai_auth;
+
         let shell_environment_policy = ShellEnvironmentPolicy::from(cfg.shell_environment_policy);
         let allow_login_shell = cfg.allow_login_shell.unwrap_or(true);
 
@@ -4086,7 +4092,8 @@ impl Config {
 
         let review_model = override_review_model.or(cfg.review_model);
 
-        let check_for_update_on_startup = cfg.check_for_update_on_startup.unwrap_or(true);
+        let check_for_update_on_startup =
+            !self_contained_provider && cfg.check_for_update_on_startup.unwrap_or(true);
         let model_catalog = load_model_catalog(cfg.model_catalog_json.clone())?;
 
         let log_dir = cfg
@@ -4497,12 +4504,17 @@ impl Config {
                 .and_then(|tui| tui.disable_paste_burst)
                 .or(cfg.disable_paste_burst)
                 .unwrap_or(false),
-            analytics_enabled: cfg.analytics.as_ref().and_then(|a| a.enabled),
-            feedback_enabled: cfg
-                .feedback
-                .as_ref()
-                .and_then(|feedback| feedback.enabled)
-                .unwrap_or(true),
+            analytics_enabled: if self_contained_provider {
+                Some(false)
+            } else {
+                cfg.analytics.as_ref().and_then(|a| a.enabled)
+            },
+            feedback_enabled: !self_contained_provider
+                && cfg
+                    .feedback
+                    .as_ref()
+                    .and_then(|feedback| feedback.enabled)
+                    .unwrap_or(true),
             tool_suggest,
             tui_notifications: cfg
                 .tui

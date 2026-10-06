@@ -53,7 +53,7 @@ jobs:
           sleep 2
           curl -s -m 3 -o /dev/null -w "relay probe: %{http_code}\n" -X POST http://127.0.0.1:8899/v1/chat/completions -d '{}' || echo "relay probe failed"
           export CODEX_HOME="$(mktemp -d)"
-          printf 'model = "test-model"\nmodel_provider = "localchat"\ncheck_for_update_on_startup = false\n\n[analytics]\nenabled = false\n\n[model_providers.localchat]\nname = "LocalChat"\nbase_url = "http://127.0.0.1:8899/v1"\nwire_api = "chat"\nenv_key = "LOCALCHAT_KEY"\n' > "$CODEX_HOME/config.toml"
+          printf 'model = "test-model"\nmodel_provider = "localchat"\n\n[model_providers.localchat]\nname = "LocalChat"\nbase_url = "http://127.0.0.1:8899/v1"\nwire_api = "chat"\nenv_key = "LOCALCHAT_KEY"\n' > "$CODEX_HOME/config.toml"
           cat "$CODEX_HOME/config.toml"
           export LOCALCHAT_KEY=dummy
           export HTTPS_PROXY=http://127.0.0.1:8890
