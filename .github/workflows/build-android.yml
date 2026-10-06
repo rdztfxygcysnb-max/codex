@@ -1,0 +1,67 @@
+# Cross-compiles the codex CLI for Android (arm64-v8a) and packages it as a
+# jniLibs entry so an APK shell can ship it.
+name: build-android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "codex-rs/**"
+      - ".github/workflows/build-android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain + Android target
+        working-directory: codex-rs
+        run: |
+          rustup show
+          rustup target add aarch64-linux-android
+          rustup target list --installed
+
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: r27c
+
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android/sdk/ndk/25* || true
+          df -h /
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs
+          key: android-arm64
+
+      - name: Build codex for aarch64-linux-android
+        working-directory: codex-rs
+        env:
+          NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -x
+          TC="$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC_aarch64_linux_android="$TC/aarch64-linux-android26-clang"
+          export CXX_aarch64_linux_android="$TC/aarch64-linux-android26-clang++"
+          export AR_aarch64_linux_android="$TC/llvm-ar"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TC/aarch64-linux-android26-clang"
+          cargo build --release --target aarch64-linux-android -p codex-cli --bin codex
+
+      - name: Package as jniLibs entry
+        run: |
+          mkdir -p dist/jniLibs/arm64-v8a
+          cp codex-rs/target/aarch64-linux-android/release/codex dist/jniLibs/arm64-v8a/libcodex.so
+          file dist/jniLibs/arm64-v8a/libcodex.so || true
+          ls -la dist/jniLibs/arm64-v8a/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-arm64
+          path: dist/
+          if-no-files-found: error
