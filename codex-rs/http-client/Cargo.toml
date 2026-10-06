@@ -12,14 +12,7 @@ http = { workspace = true }
 http-body = "1.0.1"
 httpdate = { workspace = true }
 opentelemetry = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = [
-    "json",
-    "rustls-tls",
-    "rustls-tls-native-roots",
-    "stream",
-    "charset",
-    "http2",
-] }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "rustls-tls-native-roots", "stream"] }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 rustls-pki-types = { workspace = true }
