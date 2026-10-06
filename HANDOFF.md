@@ -23,8 +23,8 @@ fork `openai/codex` → 做成**独立运行在 Android 手机上的 coding agen
 | 当前 HEAD | `593cc419dd` |
 | 领先上游 | **21 个 commit，30 文件，+2892 / -17** |
 | 本地工作副本 | `/var/minis/shared/codex-fork`（199.6M，工作树干净） |
-| CI 状态 | `mobile-ci` + `build-android` 两个 workflow，**并发=1**（同一账号同时只跑一个） |
-| 最新 CI | run `37409425948`(mobile-ci) / `37409425912`(build-android)，**结果未出**（截至本文档） |
+| CI 状态 | `mobile-ci` + `build-android` 两个 workflow；**注意并发=1**（同账号同时只跑一个，旧 run 会堵住新 run，排查时主动 cancel） |
+| 最新 CI | `mobile-ci` run `37409425948` → **success**；`build-android` run `37409425912` → **success**（12/12 步，46m34s） |
 
 **token 存放**（不在本文档）：`/root/.config/codex-gh/token`（600 权限，GitHub device flow 发放）。
 过期重建：`https://github.com/login/device`，client_id `178c6fc778ccc68e1d6a`，scope `public_repo workflow`。
@@ -103,11 +103,14 @@ config.toml (wire_api = "chat")
 - `bc731a167f`（产物失败）→ 根因：**cargo 拒绝 member manifest 里 `workspace = true` + `default-features = false`**
   → `593cc419dd` 改到 workspace 根（reqwest 全 rustls、无 default-tls/openssl）
 
-### 步骤 4 🔄 — Android 构建（**进行中，尚未成功**）
-- `c29b6eb631` 加 build-android.yml → 首跑失败：`openssl-sys`（已定位并修）
-- 侦察结论：`linux-sandbox` 有 `cfg(target_os="linux")` 守卫，**Android 自动跳过**（Android 的 target_os="android"）
-- 产物目标：`dist/jniLibs/arm64-v8a/libcodex.so`
-- **当前 run 37409425912 进行中，结果未出**
+### 步骤 4 ✅ — Android 构建成功
+- `c29b6eb631` 加 build-android.yml → 首跑失败：`openssl-sys`（native-tls 拉进来的）
+- `bc731a167f` 首轮修：native-tls 移到 `cfg(not(target_os = "android"))` → 二轮失败：cargo 拒绝 member manifest 里 `workspace = true` + `default-features = false`
+- `593cc419dd` 二轮修：`default-features = false` 挪到 **workspace 根**（reqwest 全 rustls，无 default-tls/openssl）
+- 侦察结论：`linux-sandbox` 有 `cfg(target_os="linux")` 守卫，**Android 自动跳过**（Android 的 `target_os="android"`）
+- **run `37409425912` → success**（12/12 步，46m34s），产物 artifact `codex-android-arm64` = **354 MB**
+- ⚠️ 产物 `libcodex.so` 未 strip，进 APK 前必须瘦身（`llvm-strip` 或 `strip` + `panic=abort` + `lto=thin`），否则 APK 体积不可接受
+- ⚠️ 编译成功 ≠ 运行可用：Android 上的真机运行（步骤 6）尚未开始
 
 ---
 
@@ -115,7 +118,8 @@ config.toml (wire_api = "chat")
 
 | 项 | 状态 |
 |---|---|
-| 步骤 4 Android 构建 | ❌ 未成功（预计还有更多跨平台编译问题要逐个修） |
+| 步骤 4 Android 构建 | ✅ **已完成**（run 37409425912，artifact 354MB）——剩余：产物瘦身（strip） |
+| 步骤 4 衍生 | ⚠️ `libcodex.so` 354MB 未 strip，APK 化前要瘦身（strip + panic=abort + lto） |
 | 步骤 5 APK 外壳（jniLibs + app-server stdio + 桥接 + UI） | ❌ 未开始 |
 | 步骤 6 真机验证（8 项） | ❌ 未开始 |
 | 任务书步骤 2 的「重试与切换」 | ❌ **未实现**：`ContextOverflow→压缩重发`、`QuotaExhausted→切备用 provider` 的外层循环还没写（session 层有基础 HTTP 重试，但切换逻辑没有） |
