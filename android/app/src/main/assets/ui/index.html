@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Codex Mobile UI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --canvas: oklch(96.5% 0.009 145);
+        --surface: oklch(99.2% 0.005 145);
+        --surface-2: oklch(93.8% 0.012 145);
+        --surface-3: oklch(90.8% 0.014 145);
+        --ink: oklch(21% 0.018 150);
+        --ink-soft: oklch(35% 0.018 150);
+        --muted: oklch(48% 0.014 150);
+        --faint: oklch(61% 0.012 150);
+        --line: oklch(84% 0.014 145);
+        --line-strong: oklch(72% 0.018 145);
+        --accent: oklch(64% 0.16 145);
+        --accent-deep: oklch(39% 0.12 145);
+        --accent-soft: oklch(91% 0.055 145);
+        --warning: oklch(61% 0.14 66);
+        --danger: oklch(54% 0.17 29);
+        --danger-soft: oklch(93% 0.035 29);
+        --code-add: oklch(93% 0.045 145);
+        --code-remove: oklch(94% 0.035 29);
+        --shadow: 0 6px 16px oklch(25% 0.02 145 / 0.08);
+        --focus: oklch(46% 0.14 145);
+        --r-sm: 8px;
+        --r-md: 12px;
+        --r-lg: 16px;
+        --ease: cubic-bezier(.23, 1, .32, 1);
+        --z-sticky: 10;
+        --z-dock: 20;
+        --z-dialog: 30;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --canvas: oklch(91% 0.012 145);
+          --surface: oklch(95% 0.009 145);
+          --surface-2: oklch(87% 0.016 145);
+          --surface-3: oklch(83% 0.018 145);
+          --ink: oklch(19% 0.018 150);
+          --ink-soft: oklch(31% 0.018 150);
+          --muted: oklch(43% 0.016 150);
+          --faint: oklch(54% 0.014 150);
+          --line: oklch(77% 0.018 145);
+          --line-strong: oklch(66% 0.022 145);
+          --accent: oklch(58% 0.15 145);
+          --accent-deep: oklch(33% 0.11 145);
+          --accent-soft: oklch(84% 0.07 145);
+          --danger-soft: oklch(88% 0.045 29);
+          --code-add: oklch(86% 0.06 145);
+          --code-remove: oklch(88% 0.045 29);
+          --shadow: 0 6px 16px oklch(25% 0.02 145 / 0.1);
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html { background: var(--canvas); }
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100dvh;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", "Noto Sans", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        overflow-x: hidden;
+      }
+      button, input { font: inherit; }
+      button { color: inherit; }
+      button:focus-visible,
+      input:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      .skip-link {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        z-index: var(--z-dialog);
+        transform: translateY(-160%);
+        background: var(--ink);
+        color: var(--surface);
+        padding: 10px 14px;
+        border-radius: var(--r-sm);
+      }
+      .skip-link:focus { transform: translateY(0); }
+
+      .app-shell {
+        width: min(1440px, 100%);
+        min-height: 100dvh;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr) 304px;
+        background: var(--surface);
+      }
+      .rail,
+      .inspector {
+        min-width: 0;
+        background: var(--surface-2);
+      }
+      .rail { border-right: 1px solid var(--line); }
+      .inspector { border-left: 1px solid var(--line); }
+      .rail-inner,
+      .inspector-inner {
+        position: sticky;
+        top: 0;
+        height: 100dvh;
+        overflow-y: auto;
+      }
+      .rail-inner { padding: 18px 14px 24px; }
+      .inspector-inner { padding: 20px 18px 24px; }
+
+      .workspace {
+        min-width: 0;
+        background: var(--surface);
+        padding-bottom: 90px;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: var(--z-sticky);
+        min-height: 66px;
+        padding: 10px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: color-mix(in oklch, var(--surface) 94%, transparent);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(12px);
+      }
+      .repo-context,
+      .repo-line,
+      .status-cluster,
+      .meta-line,
+      .file-meta,
+      .dock-actions,
+      .mode-switch,
+      .rail-section-title,
+      .branch-line {
+        display: flex;
+        align-items: center;
+      }
+      .repo-context { gap: 10px; min-width: 0; }
+      .repo-mark {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        border-radius: 10px;
+        background: var(--ink);
+        color: var(--surface);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+      }
+      .repo-copy { min-width: 0; }
+      .repo-line { gap: 6px; min-width: 0; }
+      .repo-name {
+        font-size: 14px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .branch-line {
+        margin-top: 1px;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .branch-line i { font-size: 13px; }
+      .top-actions { display: flex; gap: 4px; }
+      .icon-button,
+      .text-button,
+      .tab,
+      .session-item,
+      .file-row,
+      .quick-action,
+      .dock-button {
+        appearance: none;
+        border: 0;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .icon-button {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--r-sm);
+        background: transparent;
+        color: var(--ink-soft);
+        font-size: 20px;
+        transition: background-color 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
+      }
+      .icon-button:hover { background: var(--surface-2); color: var(--ink); }
+      .icon-button:active { transform: scale(.97); }
+
+      .task-head {
+        padding: 24px 24px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .status-cluster { gap: 8px; margin-bottom: 12px; }
+      .run-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-deep);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .run-state::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 16%, transparent);
+      }
+      .run-state.paused { background: color-mix(in oklch, var(--warning) 14%, var(--surface)); color: color-mix(in oklch, var(--warning) 72%, var(--ink)); }
+      .run-state.paused::before { background: var(--warning); box-shadow: none; }
+      .run-state.stopped { background: var(--surface-2); color: var(--muted); }
+      .run-state.stopped::before { background: var(--faint); box-shadow: none; }
+      .scope-label {
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+      }
+      .task-head h1 {
+        margin: 0;
+        max-width: 760px;
+        color: var(--ink);
+        font-size: 28px;
+        line-height: 1.16;
+        letter-spacing: -0.025em;
+        text-wrap: balance;
+      }
+      .task-summary {
+        max-width: 700px;
+        margin: 9px 0 0;
+        color: var(--ink-soft);
+        font-size: 15px;
+        line-height: 1.55;
+        text-wrap: pretty;
+      }
+      .meta-line {
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 15px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+      }
+      .meta-line span { display: inline-flex; align-items: center; gap: 5px; }
+
+      .progress-track {
+        position: relative;
+        height: 3px;
+        margin-top: 20px;
+        overflow: hidden;
+        background: var(--surface-3);
+        border-radius: 999px;
+      }
+      .progress-fill {
+        width: 66%;
+        height: 100%;
+        background: var(--accent);
+        transform-origin: left center;
+        transition: width 220ms var(--ease), background-color 180ms var(--ease);
+      }
+      .progress-fill.running::after {
+        content: "";
+        display: block;
+        width: 42px;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--surface) 72%, transparent), transparent);
+        animation: scan 1.5s linear infinite;
+      }
+      @keyframes scan { from { transform: translateX(-48px); } to { transform: translateX(560px); } }
+
+      .mode-switch {
+        position: sticky;
+        top: 66px;
+        z-index: calc(var(--z-sticky) - 1);
+        gap: 4px;
+        padding: 8px 18px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+      .tab {
+        min-height: 40px;
+        padding: 0 13px;
+        border-radius: var(--r-sm);
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+        transition: background-color 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
+      }
+      .tab:hover { background: var(--surface-2); color: var(--ink); }
+      .tab:active { transform: scale(.98); }
+      .tab[aria-selected="true"] { background: var(--ink); color: var(--surface); }
+
+      .panel { display: none; padding: 10px 24px 28px; }
+      .panel.active { display: block; }
+      .section-label {
+        margin: 15px 0 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .activity-list { position: relative; }
+      .activity-row {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .activity-row:last-child { border-bottom: 0; }
+      .activity-icon {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .activity-row.done .activity-icon { background: var(--accent-soft); color: var(--accent-deep); }
+      .activity-row.current .activity-icon { background: var(--ink); color: var(--surface); }
+      .activity-body { min-width: 0; }
+      .activity-title { margin: 2px 0 0; font-size: 14px; font-weight: 600; }
+      .activity-detail {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.48;
+      }
+      .activity-detail code,
+      .inline-code {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: .9em;
+        color: var(--ink-soft);
+      }
+      .activity-time {
+        padding-top: 3px;
+        color: var(--faint);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+      .working-bars { display: inline-flex; align-items: end; gap: 2px; height: 12px; margin-left: 6px; }
+      .working-bars span { width: 2px; background: var(--accent); border-radius: 2px; animation: pulse-bars 900ms ease-in-out infinite alternate; }
+      .working-bars span:nth-child(1) { height: 5px; }
+      .working-bars span:nth-child(2) { height: 10px; animation-delay: 140ms; }
+      .working-bars span:nth-child(3) { height: 7px; animation-delay: 280ms; }
+      @keyframes pulse-bars { to { transform: scaleY(.45); opacity: .45; } }
+      .activity-list.is-paused .working-bars span,
+      .activity-list.is-stopped .working-bars span { animation-play-state: paused; opacity: .35; }
+
+      .tool-call {
+        margin-top: 10px;
+        overflow: hidden;
+        border-radius: var(--r-md);
+        background: var(--surface-2);
+      }
+      .tool-head {
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--ink-soft);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+      }
+      .tool-command {
+        margin: 0;
+        padding: 12px;
+        overflow-wrap: anywhere;
+        border-top: 1px solid var(--line);
+        color: var(--ink);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        line-height: 1.65;
+      }
+
+      .file-list { margin-top: 8px; }
+      .file-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 13px 8px;
+        text-align: left;
+        background: transparent;
+        border-bottom: 1px solid var(--line);
+        border-radius: 0;
+        transition: background-color 160ms var(--ease), transform 160ms var(--ease);
+      }
+      .file-row:hover { background: var(--surface-2); }
+      .file-row:active { transform: scale(.995); }
+      .file-type {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--ink-soft);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .file-row:hover .file-type { background: var(--surface-3); }
+      .file-name { min-width: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .file-path { margin-top: 3px; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .file-meta { gap: 8px; font-family: "IBM Plex Mono", monospace; font-size: 10px; }
+      .plus { color: var(--accent-deep); }
+      .minus { color: var(--danger); }
+
+      .diff-block,
+      .terminal-block {
+        margin-top: 16px;
+        overflow: hidden;
+        border-radius: var(--r-md);
+        background: oklch(24% 0.018 150);
+        color: oklch(91% 0.01 145);
+        box-shadow: var(--shadow);
+      }
+      .diff-head,
+      .terminal-head {
+        min-height: 42px;
+        padding: 0 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: oklch(28% 0.018 150);
+        border-bottom: 1px solid oklch(40% 0.015 150);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+      }
+      .diff-code,
+      .terminal-output {
+        margin: 0;
+        padding: 14px;
+        overflow-x: auto;
+        color: oklch(90% 0.01 145);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        line-height: 1.65;
+        tab-size: 2;
+      }
+      .code-line { display: block; width: max-content; min-width: 100%; }
+      .code-add { color: oklch(85% 0.11 145); }
+      .code-remove { color: oklch(80% 0.1 29); }
+      .terminal-muted { color: oklch(67% 0.025 145); }
+      .terminal-success { color: oklch(80% 0.12 145); }
+      .cursor {
+        display: inline-block;
+        width: 7px;
+        height: 14px;
+        vertical-align: -2px;
+        background: var(--accent);
+        animation: blink 1s steps(1) infinite;
+      }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      .rail-section-title {
+        min-height: 40px;
+        justify-content: space-between;
+        padding: 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .rail-action { width: 36px; height: 36px; }
+      .session-list { display: grid; gap: 4px; }
+      .session-item {
+        width: 100%;
+        padding: 11px 10px;
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 9px;
+        align-items: start;
+        background: transparent;
+        border-radius: var(--r-md);
+        color: var(--ink-soft);
+        text-align: left;
+        transition: background-color 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
+      }
+      .session-item:hover { background: color-mix(in oklch, var(--surface) 70%, transparent); color: var(--ink); }
+      .session-item:active { transform: scale(.985); }
+      .session-item.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px oklch(25% 0.02 145 / .08); }
+      .session-symbol {
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--surface-3);
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .session-item.active .session-symbol { background: var(--accent-soft); color: var(--accent-deep); }
+      .session-title { font-size: 12px; font-weight: 600; line-height: 1.35; }
+      .session-meta { margin-top: 4px; color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 9px; }
+      .rail-footer {
+        margin-top: 22px;
+        padding: 14px 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      .device-status { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
+      .device-status i { font-size: 16px; color: var(--accent-deep); }
+
+      .inspector-title { margin: 0; font-size: 14px; font-weight: 700; }
+      .inspect-group { margin-top: 22px; }
+      .inspect-label { margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+      .inspect-value { font-family: "IBM Plex Mono", monospace; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+      .mini-stack { display: grid; gap: 8px; }
+      .mini-row { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+      .mini-row:last-child { border-bottom: 0; }
+      .mini-row strong { color: var(--ink-soft); font-weight: 600; }
+      .context-meter { display: grid; grid-template-columns: 2fr 1fr; gap: 3px; height: 6px; }
+      .context-meter span { background: var(--accent); border-radius: 999px 0 0 999px; }
+      .context-meter i { background: var(--surface-3); border-radius: 0 999px 999px 0; }
+      .permission-note { display: flex; gap: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .permission-note i { margin-top: 2px; color: var(--accent-deep); font-size: 16px; }
+
+      .run-dock {
+        position: fixed;
+        left: calc(50% - 444px);
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: var(--z-dock);
+        width: min(612px, calc(100vw - 588px));
+        min-height: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 10px 8px 14px;
+        background: var(--ink);
+        color: var(--surface);
+        border-radius: var(--r-lg);
+        box-shadow: 0 10px 24px oklch(20% 0.02 145 / .2);
+      }
+      .dock-copy { min-width: 0; }
+      .dock-stage { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dock-sub { margin-top: 2px; color: color-mix(in oklch, var(--surface) 70%, transparent); font-family: "IBM Plex Mono", monospace; font-size: 9px; }
+      .dock-actions { gap: 6px; flex: 0 0 auto; }
+      .dock-button {
+        min-width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 13px;
+        border-radius: 10px;
+        background: color-mix(in oklch, var(--surface) 12%, transparent);
+        color: var(--surface);
+        font-size: 12px;
+        font-weight: 700;
+        transition: background-color 160ms var(--ease), transform 160ms var(--ease), opacity 160ms var(--ease);
+      }
+      .dock-button:hover { background: color-mix(in oklch, var(--surface) 20%, transparent); }
+      .dock-button:active { transform: scale(.97); }
+      .dock-button.primary { background: var(--accent); color: oklch(18% 0.04 145); }
+      .dock-button.primary:hover { background: color-mix(in oklch, var(--accent) 88%, var(--surface)); }
+      .dock-button:disabled { opacity: .45; cursor: not-allowed; }
+
+      dialog {
+        width: min(560px, calc(100vw - 28px));
+        max-height: min(680px, calc(100dvh - 28px));
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 24px 64px oklch(20% 0.02 145 / .28);
+      }
+      dialog::backdrop { background: oklch(20% 0.02 145 / .38); backdrop-filter: blur(3px); }
+      .dialog-head {
+        min-height: 58px;
+        padding: 8px 8px 8px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .dialog-title { min-width: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .dialog-body { max-height: calc(100dvh - 100px); overflow-y: auto; padding: 14px; }
+      .dialog-body .diff-block { margin: 0; box-shadow: none; }
+
+      .command-dialog { width: min(480px, calc(100vw - 24px)); }
+      .command-search-wrap { padding: 12px; border-bottom: 1px solid var(--line); }
+      .command-search {
+        width: 100%;
+        height: 44px;
+        padding: 0 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--r-sm);
+        background: var(--surface-2);
+        color: var(--ink);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+      }
+      .command-search::placeholder { color: var(--muted); opacity: 1; }
+      .command-list { padding: 8px; }
+      .quick-action {
+        width: 100%;
+        min-height: 48px;
+        padding: 8px 10px;
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        border-radius: var(--r-sm);
+        background: transparent;
+        color: var(--ink-soft);
+        text-align: left;
+        transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 150ms var(--ease);
+      }
+      .quick-action:hover { background: var(--surface-2); color: var(--ink); }
+      .quick-action:active { transform: scale(.99); }
+      .quick-action i { font-size: 17px; }
+      .quick-action span { font-size: 13px; font-weight: 600; }
+      .quick-action kbd {
+        min-width: 26px;
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        color: var(--muted);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 9px;
+        text-align: center;
+      }
+      .empty-search { display: none; padding: 28px 14px; color: var(--muted); font-size: 13px; text-align: center; }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: max(88px, calc(env(safe-area-inset-bottom) + 76px));
+        z-index: var(--z-dialog);
+        max-width: calc(100vw - 32px);
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: var(--surface);
+        box-shadow: var(--shadow);
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, 8px) scale(.98);
+        transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+      }
+      .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+      @media (max-width: 1050px) {
+        .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
+        .inspector { display: none; }
+        .run-dock { left: calc(50% - 304px); width: min(612px, calc(100vw - 260px)); }
+      }
+      @media (max-width: 720px) {
+        .app-shell { display: block; width: 100%; background: var(--surface); }
+        .rail { display: none; }
+        .workspace { min-height: 100dvh; padding-bottom: 92px; }
+        .topbar { min-height: 62px; padding: 8px 10px 8px 14px; }
+        .repo-mark { width: 34px; height: 34px; border-radius: 9px; }
+        .repo-name { max-width: 190px; }
+        .task-head { padding: 21px 18px 16px; }
+        .task-head h1 { font-size: 24px; }
+        .task-summary { font-size: 14px; }
+        .mode-switch { top: 62px; padding: 7px 10px; overflow-x: auto; scrollbar-width: none; }
+        .mode-switch::-webkit-scrollbar { display: none; }
+        .tab { flex: 1 0 auto; min-width: 90px; }
+        .panel { padding: 8px 18px 26px; }
+        .activity-row { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; }
+        .activity-time { display: none; }
+        .run-dock {
+          left: 10px;
+          right: 10px;
+          width: auto;
+          bottom: max(10px, env(safe-area-inset-bottom));
+          border-radius: 14px;
+        }
+        .dock-button { padding-inline: 12px; }
+        .diff-code,
+        .terminal-output { font-size: 10px; }
+        .tool-command {
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+      }
+      @media (max-width: 390px) {
+        .task-head h1 { font-size: 22px; }
+        .dock-copy { max-width: 148px; }
+        .dock-button { min-width: 58px; padding-inline: 9px; }
+        .dock-button i { display: none; }
+        .task-summary { font-size: 13px; }
+        .scope-label { display: none; }
+        .panel { padding-inline: 14px; }
+        .task-head { padding-inline: 14px; }
+        .activity-detail { font-size: 12px; }
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .file-row:hover { padding-left: 12px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 1ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 1ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to current run</a>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Task runs">
+        <div class="rail-inner">
+          <div class="rail-section-title">
+            <span>Runs</span>
+            <button class="icon-button rail-action" type="button" aria-label="Open command palette" data-open-palette>
+              <i class="ph ph-plus" aria-hidden="true"></i>
+            </button>
+          </div>
+          <nav class="session-list" aria-label="Recent runs">
+            <button class="session-item active" type="button">
+              <span class="session-symbol"><i class="ph ph-activity" aria-hidden="true"></i></span>
+              <span><span class="session-title">Android runtime bridge</span><span class="session-meta">SAMPLE</span></span>
+            </button>
+            <button class="session-item" type="button" data-toast="This run is shown as a read-only preview.">
+              <span class="session-symbol"><i class="ph ph-check" aria-hidden="true"></i></span>
+              <span><span class="session-title">Network isolation patch</span><span class="session-meta">COMPLETE</span></span>
+            </button>
+            <button class="session-item" type="button" data-toast="This run is shown as a read-only preview.">
+              <span class="session-symbol"><i class="ph ph-check" aria-hidden="true"></i></span>
+              <span><span class="session-title">Android cross-compile</span><span class="session-meta">COMPLETE</span></span>
+            </button>
+          </nav>
+          <div class="rail-footer">
+            <div class="device-status"><i class="ph ph-device-mobile" aria-hidden="true"></i><span>Interactive UI prototype</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace" id="main-content">
+        <header class="topbar">
+          <div class="repo-context">
+            <div class="repo-mark" aria-hidden="true">&gt;_</div>
+            <div class="repo-copy">
+              <div class="repo-line"><span class="repo-name">codex / android-shell</span></div>
+              <div class="branch-line"><i class="ph ph-git-branch" aria-hidden="true"></i><span>main</span></div>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" type="button" aria-label="Open command palette" data-open-palette>
+              <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+            </button>
+            <button class="icon-button" type="button" aria-label="More run options" data-toast="Run options are available from the command palette.">
+              <i class="ph ph-dots-three-vertical" aria-hidden="true"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="task-head" aria-labelledby="task-title">
+          <div class="status-cluster">
+            <span class="run-state" id="run-state">Sample run</span>
+            <span class="scope-label">interactive prototype</span>
+          </div>
+          <h1 id="task-title">Build the Android runtime bridge</h1>
+          <p class="task-summary">Wire the native agent process into the mobile shell, then verify file edits, streamed output, and cancellation.</p>
+          <div class="meta-line">
+            <span><i class="ph ph-folder-open" aria-hidden="true"></i> ~/workspace/codex-fork</span>
+            <span><i class="ph ph-shield-check" aria-hidden="true"></i> isolated</span>
+            <span><i class="ph ph-cpu" aria-hidden="true"></i> local agent</span>
+          </div>
+          <div class="progress-track" aria-label="Run progress"><div class="progress-fill running" id="progress-fill"></div></div>
+        </section>
+
+        <div class="mode-switch" role="tablist" aria-label="Run details">
+          <button class="tab" id="tab-activity" type="button" role="tab" aria-selected="true" aria-controls="panel-activity" data-tab="activity">Activity</button>
+          <button class="tab" id="tab-changes" type="button" role="tab" aria-selected="false" aria-controls="panel-changes" data-tab="changes">Changes</button>
+          <button class="tab" id="tab-terminal" type="button" role="tab" aria-selected="false" aria-controls="panel-terminal" data-tab="terminal">Terminal</button>
+        </div>
+
+        <section class="panel active" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity">
+          <p class="section-label">Sample activity</p>
+          <div class="activity-list" id="activity-list">
+            <article class="activity-row done">
+              <div class="activity-icon"><i class="ph ph-check" aria-hidden="true"></i></div>
+              <div class="activity-body">
+                <p class="activity-title">Mapped the host boundary</p>
+                <p class="activity-detail">Read the Android entrypoint and native process wrapper before changing the bridge.</p>
+              </div>
+              <time class="activity-time">DONE</time>
+            </article>
+            <article class="activity-row done">
+              <div class="activity-icon"><i class="ph ph-pencil-simple" aria-hidden="true"></i></div>
+              <div class="activity-body">
+                <p class="activity-title">Edited the process adapter</p>
+                <p class="activity-detail">Added structured stdout events and an explicit cancellation path in <code>AgentBridge.kt</code>.</p>
+              </div>
+              <time class="activity-time">DONE</time>
+            </article>
+            <article class="activity-row current">
+              <div class="activity-icon"><i class="ph ph-terminal-window" aria-hidden="true"></i></div>
+              <div class="activity-body">
+                <p class="activity-title">Running targeted tests <span class="working-bars" aria-label="In progress"><span></span><span></span><span></span></span></p>
+                <p class="activity-detail">Checking process startup, streamed events, and cancellation without rebuilding unrelated crates.</p>
+                <div class="tool-call">
+                  <div class="tool-head"><span>shell</span><span>foreground</span></div>
+                  <pre class="tool-command">./gradlew :app:testDebugUnitTest --tests AgentBridgeTest</pre>
+                </div>
+              </div>
+              <time class="activity-time">NOW</time>
+            </article>
+            <article class="activity-row">
+              <div class="activity-icon"><i class="ph ph-package" aria-hidden="true"></i></div>
+              <div class="activity-body">
+                <p class="activity-title">Package the debug build</p>
+                <p class="activity-detail">Starts after the focused bridge tests pass.</p>
+              </div>
+              <time class="activity-time">NEXT</time>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-changes" role="tabpanel" aria-labelledby="tab-changes" hidden>
+          <p class="section-label">Working tree</p>
+          <div class="file-list">
+            <button class="file-row" type="button" data-file="AgentBridge.kt">
+              <span class="file-type">KT</span>
+              <span><span class="file-name">AgentBridge.kt</span><span class="file-path">app/src/main/java/ai/codex/runtime</span></span>
+              <span class="file-meta"><span class="plus">+18</span><span class="minus">-4</span></span>
+            </button>
+            <button class="file-row" type="button" data-file="AgentEvent.kt">
+              <span class="file-type">KT</span>
+              <span><span class="file-name">AgentEvent.kt</span><span class="file-path">app/src/main/java/ai/codex/runtime</span></span>
+              <span class="file-meta"><span class="plus">+9</span></span>
+            </button>
+            <button class="file-row" type="button" data-file="AgentBridgeTest.kt">
+              <span class="file-type">KT</span>
+              <span><span class="file-name">AgentBridgeTest.kt</span><span class="file-path">app/src/test/java/ai/codex/runtime</span></span>
+              <span class="file-meta"><span class="plus">+31</span></span>
+            </button>
+          </div>
+          <div class="diff-block" aria-label="Code diff preview">
+            <div class="diff-head"><span>AgentBridge.kt</span><span>modified</span></div>
+            <pre class="diff-code"><code><span class="code-line"> fun start(request: AgentRequest) {</span><span class="code-line code-remove">-  process.launch(request.prompt)</span><span class="code-line code-add">+  process.launch(request) { event -&gt;</span><span class="code-line code-add">+    events.tryEmit(event)</span><span class="code-line code-add">+  }</span><span class="code-line"> }</span><span class="code-line"> </span><span class="code-line code-add">+fun cancel() = process.cancel()</span></code></pre>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" hidden>
+          <p class="section-label">Live output</p>
+          <div class="terminal-block">
+            <div class="terminal-head"><span>bridge-tests</span><span id="terminal-state">running</span></div>
+            <pre class="terminal-output" aria-live="polite"><span class="terminal-muted">$ ./gradlew :app:testDebugUnitTest --tests AgentBridgeTest</span>
+
+&gt; Task :app:compileDebugKotlin
+&gt; Task :app:testDebugUnitTest
+
+<span class="terminal-success">AgentBridgeTest &gt; streams process events PASSED</span>
+<span class="terminal-success">AgentBridgeTest &gt; cancels active process PASSED</span>
+AgentBridgeTest &gt; closes descriptors <span class="cursor" aria-hidden="true"></span></pre>
+          </div>
+        </section>
+      </main>
+
+      <aside class="inspector" aria-label="Run context">
+        <div class="inspector-inner">
+          <h2 class="inspector-title">Run context</h2>
+          <section class="inspect-group">
+            <div class="inspect-label">Model</div>
+            <div class="inspect-value">codex-local / balanced</div>
+          </section>
+          <section class="inspect-group">
+            <div class="inspect-label">Context</div>
+            <div class="context-meter" aria-label="Context window approximately two-thirds used"><span></span><i></i></div>
+          </section>
+          <section class="inspect-group mini-stack">
+            <div class="mini-row"><span>Mode</span><strong>Agent</strong></div>
+            <div class="mini-row"><span>Approval</span><strong>On request</strong></div>
+            <div class="mini-row"><span>Network</span><strong>Restricted</strong></div>
+          </section>
+          <section class="inspect-group">
+            <div class="inspect-label">Permissions</div>
+            <div class="permission-note"><i class="ph ph-shield-check" aria-hidden="true"></i><span>May edit the workspace and run local commands. External writes still require approval.</span></div>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <div class="run-dock" aria-label="Run controls">
+      <div class="dock-copy"><div class="dock-stage" id="dock-stage">Sample test run</div><div class="dock-sub" id="dock-sub">Prototype controls are interactive</div></div>
+      <div class="dock-actions">
+        <button class="dock-button primary" id="pause-button" type="button"><i class="ph ph-pause" aria-hidden="true"></i><span>Pause</span></button>
+        <button class="dock-button" id="stop-button" type="button"><i class="ph ph-stop" aria-hidden="true"></i><span>Stop</span></button>
+      </div>
+    </div>
+
+    <dialog id="file-dialog" aria-labelledby="file-dialog-title">
+      <div class="dialog-head">
+        <div class="dialog-title" id="file-dialog-title">AgentBridge.kt</div>
+        <button class="icon-button" type="button" aria-label="Close file preview" data-close-dialog="file-dialog"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="dialog-body">
+        <div class="diff-block">
+          <div class="diff-head"><span id="dialog-file-name">AgentBridge.kt</span><span>working tree</span></div>
+          <pre class="diff-code"><code><span class="code-line">sealed interface AgentEvent {</span><span class="code-line code-add">+ data class Output(val chunk: String) : AgentEvent</span><span class="code-line code-add">+ data object Cancelled : AgentEvent</span><span class="code-line">}</span><span class="code-line"> </span><span class="code-line code-add">+fun cancel() {</span><span class="code-line code-add">+  process.destroy()</span><span class="code-line code-add">+  events.tryEmit(AgentEvent.Cancelled)</span><span class="code-line code-add">+}</span></code></pre>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="command-dialog" id="command-dialog" aria-labelledby="command-title">
+      <div class="dialog-head">
+        <div class="dialog-title" id="command-title">Go to</div>
+        <button class="icon-button" type="button" aria-label="Close command palette" data-close-dialog="command-dialog"><i class="ph ph-x" aria-hidden="true"></i></button>
+      </div>
+      <div class="command-search-wrap">
+        <input class="command-search" id="command-search" type="search" aria-label="Search commands" placeholder="Search views and actions" autocomplete="off" />
+      </div>
+      <div class="command-list" id="command-list">
+        <button class="quick-action" type="button" data-jump="activity"><i class="ph ph-activity" aria-hidden="true"></i><span>Open activity</span><kbd>A</kbd></button>
+        <button class="quick-action" type="button" data-jump="changes"><i class="ph ph-git-diff" aria-hidden="true"></i><span>Review changes</span><kbd>C</kbd></button>
+        <button class="quick-action" type="button" data-jump="terminal"><i class="ph ph-terminal-window" aria-hidden="true"></i><span>Open terminal</span><kbd>T</kbd></button>
+        <button class="quick-action" type="button" data-palette-action="pause"><i class="ph ph-pause" aria-hidden="true"></i><span>Pause current run</span><kbd>P</kbd></button>
+        <div class="empty-search" id="empty-search">No matching command</div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      (function () {
+        var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-tab]'));
+        var panels = Array.prototype.slice.call(document.querySelectorAll('[role="tabpanel"]'));
+        var pauseButton = document.getElementById('pause-button');
+        var stopButton = document.getElementById('stop-button');
+        var runState = document.getElementById('run-state');
+        var progress = document.getElementById('progress-fill');
+        var activityList = document.getElementById('activity-list');
+        var dockStage = document.getElementById('dock-stage');
+        var dockSub = document.getElementById('dock-sub');
+        var terminalState = document.getElementById('terminal-state');
+        var commandDialog = document.getElementById('command-dialog');
+        var commandSearch = document.getElementById('command-search');
+        var fileDialog = document.getElementById('file-dialog');
+        var toast = document.getElementById('toast');
+        var toastTimer;
+        var runMode = 'running';
+
+        function selectTab(name, focusTab) {
+          tabs.forEach(function (tab) {
+            var selected = tab.dataset.tab === name;
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            tab.tabIndex = selected ? 0 : -1;
+            if (selected && focusTab) tab.focus();
+          });
+          panels.forEach(function (panel) {
+            var selected = panel.id === 'panel-' + name;
+            panel.hidden = !selected;
+            panel.classList.toggle('active', selected);
+          });
+        }
+
+        tabs.forEach(function (tab, index) {
+          tab.addEventListener('click', function () { selectTab(tab.dataset.tab, false); });
+          tab.addEventListener('keydown', function (event) {
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+            event.preventDefault();
+            var direction = event.key === 'ArrowRight' ? 1 : -1;
+            var next = (index + direction + tabs.length) % tabs.length;
+            selectTab(tabs[next].dataset.tab, true);
+          });
+        });
+
+        function updateRun(nextMode) {
+          runMode = nextMode;
+          runState.className = 'run-state ' + (nextMode === 'running' ? '' : nextMode);
+          progress.classList.toggle('running', nextMode === 'running');
+          activityList.classList.toggle('is-paused', nextMode === 'paused');
+          activityList.classList.toggle('is-stopped', nextMode === 'stopped');
+          if (nextMode === 'running') {
+            runState.textContent = 'Sample run';
+            pauseButton.disabled = false;
+            pauseButton.innerHTML = '<i class="ph ph-pause" aria-hidden="true"></i><span>Pause</span>';
+            dockStage.textContent = 'Sample test run';
+            dockSub.textContent = 'Prototype controls are interactive';
+            terminalState.textContent = 'sample output';
+          } else if (nextMode === 'paused') {
+            runState.textContent = 'Sample paused';
+            pauseButton.disabled = false;
+            pauseButton.innerHTML = '<i class="ph ph-play" aria-hidden="true"></i><span>Resume</span>';
+            dockStage.textContent = 'Run paused';
+            dockSub.textContent = 'Resume when ready';
+            terminalState.textContent = 'sample paused';
+          } else {
+            runState.textContent = 'Sample stopped';
+            pauseButton.disabled = true;
+            stopButton.disabled = true;
+            progress.style.width = '66%';
+            dockStage.textContent = 'Run stopped';
+            dockSub.textContent = 'Start a new run from the command palette';
+            terminalState.textContent = 'sample stopped';
+          }
+        }
+
+        pauseButton.addEventListener('click', function () {
+          if (runMode === 'running') {
+            updateRun('paused');
+            showToast('Run paused.');
+          } else if (runMode === 'paused') {
+            updateRun('running');
+            showToast('Run resumed.');
+          }
+        });
+        stopButton.addEventListener('click', function () {
+          if (runMode === 'stopped') return;
+          updateRun('stopped');
+          showToast('Run stopped.');
+        });
+
+        function openCommand() {
+          if (typeof commandDialog.showModal === 'function') {
+            commandDialog.showModal();
+            commandSearch.value = '';
+            filterCommands('');
+            window.setTimeout(function () { commandSearch.focus(); }, 20);
+          }
+        }
+        document.querySelectorAll('[data-open-palette]').forEach(function (button) {
+          button.addEventListener('click', openCommand);
+        });
+        document.addEventListener('keydown', function (event) {
+          if (event.key === '/' && !commandDialog.open && document.activeElement.tagName !== 'INPUT') {
+            event.preventDefault();
+            openCommand();
+          }
+        });
+
+        function filterCommands(value) {
+          var visible = 0;
+          document.querySelectorAll('.quick-action').forEach(function (item) {
+            var matches = item.textContent.toLowerCase().indexOf(value.toLowerCase()) !== -1;
+            item.hidden = !matches;
+            if (matches) visible += 1;
+          });
+          document.getElementById('empty-search').style.display = visible ? 'none' : 'block';
+        }
+        commandSearch.addEventListener('input', function () { filterCommands(commandSearch.value.trim()); });
+
+        document.querySelectorAll('[data-jump]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            commandDialog.close();
+            selectTab(button.dataset.jump, true);
+          });
+        });
+        document.querySelector('[data-palette-action="pause"]').addEventListener('click', function () {
+          commandDialog.close();
+          if (runMode !== 'stopped') pauseButton.click();
+        });
+
+        document.querySelectorAll('[data-file]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var fileName = button.dataset.file;
+            document.getElementById('file-dialog-title').textContent = fileName;
+            document.getElementById('dialog-file-name').textContent = fileName;
+            if (typeof fileDialog.showModal === 'function') fileDialog.showModal();
+          });
+        });
+        document.querySelectorAll('[data-close-dialog]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            document.getElementById(button.dataset.closeDialog).close();
+          });
+        });
+
+        document.querySelectorAll('[data-toast]').forEach(function (button) {
+          button.addEventListener('click', function () { showToast(button.dataset.toast); });
+        });
+        function showToast(message) {
+          window.clearTimeout(toastTimer);
+          toast.textContent = message;
+          toast.classList.add('show');
+          toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 2200);
+        }
+
+        [fileDialog, commandDialog].forEach(function (dialog) {
+          dialog.addEventListener('click', function (event) {
+            if (event.target !== dialog) return;
+            var rect = dialog.getBoundingClientRect();
+            var inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+            if (!inside) dialog.close();
+          });
+        });
+      }());
+    </script>
+  </body>
+</html>

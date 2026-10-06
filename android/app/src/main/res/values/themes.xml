@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light warm theme to match the web UI (paper background). -->
+    <style name="Theme.CodexMobile" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FAF7F2</item>
+        <item name="android:statusBarColor">#FAF7F2</item>
+        <item name="android:navigationBarColor">#FAF7F2</item>
+    </style>
+</resources>
